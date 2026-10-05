@@ -1,0 +1,128 @@
+{
+  "downloadsPath": "%USERPROFILE%\\Downloads",
+  "moveUnknownFiles": true,
+
+  "categories": {
+    "Images": [
+      ".jpg",
+      ".jpeg",
+      ".png",
+      ".gif",
+      ".webp",
+      ".bmp",
+      ".svg",
+      ".ico"
+    ],
+
+    "Videos": [
+      ".mp4",
+      ".mkv",
+      ".mov",
+      ".avi",
+      ".webm",
+      ".wmv"
+    ],
+
+    "Music": [
+      ".mp3",
+      ".wav",
+      ".flac",
+      ".m4a",
+      ".aac",
+      ".ogg"
+    ],
+
+    "Documents": [
+      ".pdf",
+      ".doc",
+      ".docx",
+      ".txt",
+      ".rtf",
+      ".ppt",
+      ".pptx",
+      ".xls",
+      ".xlsx",
+      ".csv"
+    ],
+
+    "Archives": [
+      ".zip",
+      ".rar",
+      ".7z",
+      ".tar",
+      ".gz"
+    ],
+
+    "Installers": [
+      ".exe",
+      ".msi",
+      ".msix",
+      ".appx",
+      ".appxbundle"
+    ],
+
+    "Android": [
+      ".apk",
+      ".aab",
+      ".xapk",
+      ".apks"
+    ],
+
+    "Disk Images": [
+      ".iso",
+      ".img",
+      ".vhd",
+      ".vhdx"
+    ],
+
+    "Fonts": [
+      ".ttf",
+      ".otf",
+      ".woff",
+      ".woff2"
+    ],
+
+    "Code": [
+      ".py",
+      ".js",
+      ".ts",
+      ".html",
+      ".css",
+      ".java",
+      ".dart",
+      ".cpp",
+      ".c",
+      ".h",
+      ".cs",
+      ".php",
+      ".json",
+      ".xml",
+      ".sql",
+      ".ps1",
+      ".sh",
+      ".lua",
+      ".gd"
+    ],
+
+    "Game Files": [
+      ".mcpack",
+      ".mcworld",
+      ".mcaddon",
+      ".rbxl",
+      ".rbxlx"
+    ],
+
+    "Rainmeter": [
+    ".rmskin"
+    ],
+
+    "Java & Minecraft": [
+    ".jar",
+    ".mcpack",
+    ".mcworld",
+    ".mcaddon"
+    ],
+
+    "Other": []
+  }
+}

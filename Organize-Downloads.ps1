@@ -1,63 +1,143 @@
-$Downloads = "$env:USERPROFILE\Downloads"
+param(
+    [switch]$DryRun
+)
 
-$Folders = @{
-    "Images"     = @(".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg")
-    "Videos"     = @(".mp4", ".mkv", ".mov", ".avi", ".webm")
-    "Music"      = @(".mp3", ".wav", ".flac", ".m4a", ".aac")
-    "Documents"  = @(".pdf", ".doc", ".docx", ".txt", ".ppt", ".pptx", ".xls", ".xlsx")
-    "Archives"   = @(".zip", ".rar", ".7z", ".tar", ".gz")
-    "Installers" = @(".exe", ".msi", ".msix", ".appx")
-    "Code"       = @(
-        ".py", ".js", ".ts", ".html", ".css",
-        ".java", ".dart", ".cpp", ".c", ".cs",
-        ".php", ".json", ".xml", ".sql"
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ConfigPath = Join-Path $ScriptDir "config.json"
+$LogPath = Join-Path $ScriptDir "organizer.log"
+
+if (!(Test-Path $ConfigPath)) {
+    Write-Host "config.json was not found." -ForegroundColor Red
+    exit 1
+}
+
+$Config = Get-Content $ConfigPath -Raw | ConvertFrom-Json
+
+$Downloads = if ($Config.downloadsPath) {
+    [Environment]::ExpandEnvironmentVariables($Config.downloadsPath)
+}
+else {
+    Join-Path $env:USERPROFILE "Downloads"
+}
+
+if (!(Test-Path $Downloads)) {
+    Write-Host "Downloads folder not found: $Downloads" -ForegroundColor Red
+    exit 1
+}
+
+function Write-Log {
+    param([string]$Message)
+
+    $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $Entry = "[$Timestamp] $Message"
+
+    Add-Content -Path $LogPath -Value $Entry
+    Write-Host $Entry
+}
+
+function Get-UniqueDestination {
+    param(
+        [string]$Directory,
+        [string]$FileName
     )
-}
 
-foreach ($Folder in $Folders.Keys) {
+    $Target = Join-Path $Directory $FileName
 
-    $Destination = Join-Path $Downloads $Folder
-
-    if (!(Test-Path $Destination)) {
-        New-Item -ItemType Directory -Path $Destination | Out-Null
+    if (!(Test-Path $Target)) {
+        return $Target
     }
+
+    $BaseName = [System.IO.Path]::GetFileNameWithoutExtension($FileName)
+    $Extension = [System.IO.Path]::GetExtension($FileName)
+
+    $Counter = 1
+
+    do {
+        $NewName = "$BaseName ($Counter)$Extension"
+        $Target = Join-Path $Directory $NewName
+        $Counter++
+    }
+    while (Test-Path $Target)
+
+    return $Target
 }
 
-Get-ChildItem $Downloads -File | ForEach-Object {
+Write-Log "Organizer started. DryRun=$DryRun"
 
-    $File = $_
-    $Extension = $File.Extension.ToLower()
+foreach ($Category in $Config.categories.PSObject.Properties) {
 
-    foreach ($Folder in $Folders.Keys) {
+    $FolderName = $Category.Name
 
-        if ($Folders[$Folder] -contains $Extension) {
+    $DestinationFolder = Join-Path $Downloads $FolderName
 
-            $Destination = Join-Path $Downloads $Folder
-            $Target = Join-Path $Destination $File.Name
+    if (!(Test-Path $DestinationFolder)) {
 
-            # Avoid overwriting files with the same name
-            if (Test-Path $Target) {
-
-                $BaseName = [System.IO.Path]::GetFileNameWithoutExtension($File.Name)
-                $Extension = $File.Extension
-                $Counter = 1
-
-                do {
-                    $NewName = "$BaseName ($Counter)$Extension"
-                    $Target = Join-Path $Destination $NewName
-                    $Counter++
-                }
-                while (Test-Path $Target)
-            }
-
-            Move-Item $File.FullName $Target
-
-            Write-Host "Moved $($File.Name) -> $Folder"
-
-            break
+        if ($DryRun) {
+            Write-Host "[DRY RUN] Create folder: $DestinationFolder"
+        }
+        else {
+            New-Item -ItemType Directory -Path $DestinationFolder | Out-Null
+            Write-Log "Created folder: $FolderName"
         }
     }
 }
 
-Write-Host ""
-Write-Host "Downloads organized successfully!"
+$Files = Get-ChildItem -Path $Downloads -File
+
+foreach ($File in $Files) {
+
+    $Extension = $File.Extension.ToLower()
+    $MatchedCategory = $null
+
+    foreach ($Category in $Config.categories.PSObject.Properties) {
+
+        if ($Category.Value -contains $Extension) {
+            $MatchedCategory = $Category.Name
+            break
+        }
+    }
+
+    if (!$MatchedCategory -and $Config.moveUnknownFiles) {
+        $MatchedCategory = "Other"
+    }
+
+    if (!$MatchedCategory) {
+        continue
+    }
+
+    $DestinationDirectory = Join-Path $Downloads $MatchedCategory
+
+    if (!(Test-Path $DestinationDirectory) -and !$DryRun) {
+        New-Item -ItemType Directory -Path $DestinationDirectory | Out-Null
+    }
+
+    $Destination = Get-UniqueDestination `
+        -Directory $DestinationDirectory `
+        -FileName $File.Name
+
+    if ($DryRun) {
+
+        Write-Host "[DRY RUN] $($File.Name) -> $MatchedCategory"
+
+    }
+    else {
+
+        try {
+
+            Move-Item `
+                -LiteralPath $File.FullName `
+                -Destination $Destination `
+                -ErrorAction Stop
+
+            Write-Log "Moved '$($File.Name)' -> '$MatchedCategory'"
+
+        }
+        catch {
+
+            Write-Log "ERROR moving '$($File.Name)': $($_.Exception.Message)"
+
+        }
+    }
+}
+
+Write-Log "Organizer finished."
