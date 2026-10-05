@@ -4,7 +4,7 @@ A lightweight PowerShell utility that automatically organizes your Windows **Dow
 
 Instead of letting Downloads turn into a mess, AutoDownloadsOrganizer sorts files into clean categories such as **Images, Videos, Documents, Archives, Installers, Code, Android files, Rainmeter skins, Minecraft files, and more**.
 
-V4 adds faster real-time monitoring, single-instance protection, duplicate event protection, and per-file processing.
+V5 adds a full **Windows GUI control center**, **system tray controls**, one-click organization, monitoring controls, configuration access, startup management, and tray notifications.
 
 ---
 
@@ -25,6 +25,8 @@ Use `-DryRun` to preview all file movements safely:
 ## ✨ Features
 
 - 📁 Automatically sorts files by extension
+- 🖥️ GUI control center
+- 📌 System tray support
 - 👀 Real-time Downloads folder monitoring
 - 🎯 Processes only the newly detected file in real-time mode
 - 🔒 Prevents multiple watcher instances from running at the same time
@@ -36,6 +38,10 @@ Use `-DryRun` to preview all file movements safely:
 - 📝 Creates an activity log
 - 🚀 Optional automatic startup when you sign in to Windows
 - 🗑️ Easy startup removal with `Uninstall.ps1`
+- 🔔 Tray notifications
+- 📂 One-click access to Downloads
+- ⚙️ One-click access to configuration
+- 📝 One-click access to logs
 - 📦 Supports many common file types
 - ❓ Unknown files can automatically go into an `Other` folder
 - 💻 No third-party software required
@@ -49,6 +55,7 @@ Use `-DryRun` to preview all file movements safely:
 AutoDownloadsOrganizer/
 ├── assets/
 │   └── dryrun-demo.png
+├── AutoDownloadsOrganizer.ps1
 ├── Organize-Downloads.ps1
 ├── Watch-Downloads.ps1
 ├── Install.ps1
@@ -106,33 +113,85 @@ cd AutoDownloadsOrganizer
 
 ---
 
-# 🧪 Test Before Moving Files
+# 🖥️ Launch the V5 Control Center
 
-It is recommended to run the organizer in **Dry Run mode** first:
+Run:
 
 ```powershell
-.\Organize-Downloads.ps1 -DryRun
+.\AutoDownloadsOrganizer.ps1
 ```
 
-Dry Run shows what the organizer **would** do without moving your files.
+This opens the V5 GUI.
 
-Example:
+The control center includes:
 
 ```text
-[DRY RUN] wallpaper.png -> Images
-[DRY RUN] setup.exe -> Installers
-[DRY RUN] app-release.apk -> Android
-[DRY RUN] fabric-api.jar -> Java & Minecraft
-[DRY RUN] theme.rmskin -> Rainmeter
+AutoDownloadsOrganizer V5
+
+Real-time monitoring: ON / OFF
+
+[ Organize Now ]        [ Dry Run ]
+
+[ Start Monitoring ]    [ Stop Monitoring ]
+
+[ Open Downloads ]      [ Edit Configuration ]
+
+[ Open Activity Log ]   [ Open Project Folder ]
+
+[ Enable Startup ]      [ Disable Startup ]
 ```
 
-> Dry Run does not move your files, although normal logging may still occur.
+You can manage most features without manually typing PowerShell commands.
 
 ---
 
-# ▶️ Run the Organizer Once
+# 📌 System Tray
 
-When you're happy with the Dry Run results:
+V5 includes a system tray icon.
+
+When you minimize or close the main window, the control center can remain available from the system tray.
+
+Right-click the tray icon to access:
+
+```text
+Open AutoDownloadsOrganizer
+Organize Now
+
+Start Monitoring
+Stop Monitoring
+
+Open Downloads
+
+Exit
+```
+
+Double-click the tray icon to reopen the main window.
+
+---
+
+# 🔔 Tray Notifications
+
+V5 can show tray notifications for actions such as:
+
+```text
+Monitoring Started
+Monitoring Stopped
+Organization Complete
+```
+
+These notifications help confirm actions without requiring the main window to stay open.
+
+---
+
+# 🧹 Organize Now
+
+From the GUI, click:
+
+```text
+Organize Now
+```
+
+or run manually:
 
 ```powershell
 .\Organize-Downloads.ps1
@@ -140,7 +199,7 @@ When you're happy with the Dry Run results:
 
 Your current Downloads folder will be organized immediately.
 
-For example:
+Example:
 
 ```text
 Downloads/
@@ -162,11 +221,47 @@ Downloads/
 
 ---
 
+# 🧪 Dry Run
+
+Dry Run lets you preview what would happen without moving files.
+
+From the GUI, click:
+
+```text
+Dry Run
+```
+
+or run:
+
+```powershell
+.\Organize-Downloads.ps1 -DryRun
+```
+
+Example:
+
+```text
+[DRY RUN] wallpaper.png -> Images
+[DRY RUN] setup.exe -> Installers
+[DRY RUN] app-release.apk -> Android
+[DRY RUN] fabric-api.jar -> Java & Minecraft
+[DRY RUN] theme.rmskin -> Rainmeter
+```
+
+> Dry Run does not move your files, although normal logging may still occur.
+
+---
+
 # 👀 Real-Time Monitoring
 
-AutoDownloadsOrganizer V4 can continuously watch your Downloads folder and automatically organize new files as they arrive.
+AutoDownloadsOrganizer continuously watches your Downloads folder and automatically organizes new files as they arrive.
 
-Start the real-time watcher with:
+Start monitoring from the GUI:
+
+```text
+Start Monitoring
+```
+
+or manually:
 
 ```powershell
 .\Watch-Downloads.ps1
@@ -181,9 +276,25 @@ Single-instance protection: Enabled
 Press Ctrl+C to stop.
 ```
 
+The GUI will show:
+
+```text
+Real-time monitoring: ON
+```
+
+When monitoring is stopped:
+
+```text
+Real-time monitoring: OFF
+```
+
+---
+
+## How Real-Time Monitoring Works
+
 When a new file appears, AutoDownloadsOrganizer:
 
-1. Detects the new file
+1. Detects the file
 2. Ignores temporary download files
 3. Filters duplicate filesystem events
 4. Waits until the file is finished downloading
@@ -201,33 +312,13 @@ Moved 'wallpaper.png' -> 'Images'
 Done.
 ```
 
-Press:
-
-```text
-Ctrl + C
-```
-
-to stop the watcher.
-
 ---
 
 ## ⚡ Optimized Per-File Processing
 
-Earlier versions could re-scan the entire Downloads folder whenever a new file appeared.
+Real-time mode does not need to scan the entire Downloads folder every time a new file arrives.
 
-V4 uses a more efficient approach.
-
-Instead of:
-
-```text
-New file
-   ↓
-Scan entire Downloads folder
-   ↓
-Organize everything
-```
-
-V4 does:
+Instead:
 
 ```text
 New file
@@ -247,43 +338,37 @@ The watcher uses:
 .\Organize-Downloads.ps1 -FilePath "C:\Users\YourName\Downloads\example.png"
 ```
 
-internally to organize one file at a time.
-
-This makes real-time mode faster and more efficient.
+internally.
 
 ---
 
 ## 🔒 Single-Instance Protection
 
-V4 prevents multiple watcher instances from running at the same time.
+Only one real-time watcher can run at a time.
 
-If `Watch-Downloads.ps1` is already running and you try to start it again:
+If the watcher is already running and another instance is launched:
 
 ```text
 AutoDownloadsOrganizer is already running.
 ```
 
-The second watcher exits automatically.
+The second instance exits automatically.
 
-This helps prevent duplicate file processing and unnecessary background processes.
+This helps prevent duplicate file processing.
 
 ---
 
 ## 🧯 Duplicate Event Protection
 
-Windows `FileSystemWatcher` can sometimes report the same file event more than once.
+Windows `FileSystemWatcher` can sometimes report the same file more than once.
 
-V4 tracks recently detected file paths and ignores duplicate events within a short time window.
-
-This prevents the same download from being processed twice.
+AutoDownloadsOrganizer tracks recently processed paths and filters repeated events within a short period.
 
 ---
 
 ## ⏳ Temporary Download Protection
 
-Browsers often create temporary files while a download is still in progress.
-
-AutoDownloadsOrganizer ignores temporary extensions such as:
+AutoDownloadsOrganizer ignores common temporary download extensions such as:
 
 ```text
 .crdownload
@@ -293,7 +378,7 @@ AutoDownloadsOrganizer ignores temporary extensions such as:
 .download
 ```
 
-The watcher waits for the completed file before organizing it.
+It waits for the final file before organizing it.
 
 This helps prevent partially downloaded or locked files from being moved too early.
 
@@ -307,15 +392,21 @@ All settings and categories are stored inside:
 config.json
 ```
 
+The GUI provides an:
+
+```text
+Edit Configuration
+```
+
+button that opens the file in Notepad.
+
 The default Downloads location is:
 
 ```json
 "downloadsPath": "%USERPROFILE%\\Downloads"
 ```
 
-You can change it to another folder if you want.
-
-For example:
+You can change it:
 
 ```json
 "downloadsPath": "D:\\Downloads"
@@ -325,7 +416,7 @@ For example:
 
 ## 👀 Watcher Configuration
 
-V4 also includes configurable watcher timing settings.
+V4/V5 includes configurable watcher timing.
 
 Example:
 
@@ -346,12 +437,6 @@ Default:
 1000 ms
 ```
 
-which is:
-
-```text
-1 second
-```
-
 ### `postReadyDelayMilliseconds`
 
 Adds a small extra delay after the file becomes available.
@@ -362,13 +447,13 @@ Default:
 500 ms
 ```
 
-This helps avoid moving a file while a browser or application is performing final write or rename operations.
+This helps avoid moving a file while an application is performing final write operations.
 
 ---
 
 ## Add Your Own Category
 
-You can create custom categories by editing the `categories` section.
+You can create custom categories inside `config.json`.
 
 Example:
 
@@ -381,7 +466,7 @@ Example:
 ]
 ```
 
-The organizer will automatically create:
+AutoDownloadsOrganizer will automatically create:
 
 ```text
 Downloads\3D Models
@@ -399,13 +484,13 @@ By default:
 "moveUnknownFiles": true
 ```
 
-This means files that do not match any configured extension will be moved into:
+Unknown files will be moved into:
 
 ```text
 Other
 ```
 
-If you would rather leave unknown files untouched, change it to:
+To leave unknown files untouched:
 
 ```json
 "moveUnknownFiles": false
@@ -413,11 +498,15 @@ If you would rather leave unknown files untouched, change it to:
 
 ---
 
-# 🚀 Run Automatically When Windows Starts
+# 🚀 Windows Startup
 
-AutoDownloadsOrganizer includes an installer script.
+The GUI provides:
 
-Run:
+```text
+Enable Windows Startup
+```
+
+or you can manually run:
 
 ```powershell
 .\Install.ps1
@@ -429,40 +518,66 @@ This creates a Windows Startup shortcut that launches:
 Watch-Downloads.ps1
 ```
 
-automatically whenever you sign in to Windows.
+when you sign in to Windows.
 
-The watcher then runs quietly in the background and organizes new downloads automatically.
+The watcher runs quietly in the background.
 
-Your project files are not copied or deleted.
+The GUI itself does not need to start automatically.
 
 ---
 
-# 🗑️ Disable Automatic Startup
+# 🗑️ Disable Windows Startup
 
-Run:
+From the GUI:
+
+```text
+Disable Windows Startup
+```
+
+or run:
 
 ```powershell
 .\Uninstall.ps1
 ```
 
-This removes the AutoDownloadsOrganizer startup shortcut.
+This removes the startup shortcut.
 
 It does **not** delete:
 
 - Your Downloads
 - Organized files
-- The AutoDownloadsOrganizer project
+- AutoDownloadsOrganizer
 - Your configuration
 
 ---
 
-# 📝 Logging
+# 📂 Open Downloads
 
-The organizer records activity in:
+The GUI includes:
+
+```text
+Open Downloads
+```
+
+which opens the configured Downloads folder directly in File Explorer.
+
+---
+
+# 📝 Activity Log
+
+AutoDownloadsOrganizer records activity in:
 
 ```text
 organizer.log
 ```
+
+The GUI includes:
+
+```text
+Open Activity Log
+```
+
+to open the log directly.
 
 Example:
 
@@ -472,15 +587,11 @@ Example:
 [2026-10-05 12:14:01] Organizer finished.
 ```
 
-Watcher messages are also logged.
-
-Example:
+Watcher messages may look like:
 
 ```text
 [2026-10-05 12:14:00] [Watcher] V4 watcher started.
 ```
-
-Logging can help you see what the script moved and troubleshoot problems.
 
 ---
 
@@ -488,19 +599,19 @@ Logging can help you see what the script moved and troubleshoot problems.
 
 AutoDownloadsOrganizer will **not overwrite an existing file**.
 
-If this file already exists:
+If:
 
 ```text
 wallpaper.png
 ```
 
-another file with the same name will automatically become:
+already exists, another file with the same name becomes:
 
 ```text
 wallpaper (1).png
 ```
 
-Then:
+then:
 
 ```text
 wallpaper (2).png
@@ -512,21 +623,19 @@ and so on.
 
 # 🛡️ Safety
 
-AutoDownloadsOrganizer is designed to be simple and safe.
-
-It:
+AutoDownloadsOrganizer:
 
 - Does not delete your downloaded files
 - Does not overwrite duplicate files
-- Supports testing with `-DryRun`
-- Waits for files to finish downloading
+- Supports `-DryRun`
+- Waits for downloads to finish
 - Ignores common temporary download files
 - Prevents multiple watcher instances
 - Filters duplicate filesystem events
-- Only organizes files in the configured directory
+- Organizes only the configured directory
 - Does not require administrator privileges for normal use
 
-Always check the Dry Run output before using a new configuration.
+Always test new configuration changes with Dry Run first.
 
 ---
 
@@ -534,19 +643,28 @@ Always check the Dry Run output before using a new configuration.
 
 - Windows 10 or Windows 11
 - Windows PowerShell 5.1+ or compatible PowerShell
-- Git is optional and only needed if cloning the repository
+- Git is optional and only needed when cloning the repository
+
+The V5 GUI uses built-in Windows components:
+
+```text
+System.Windows.Forms
+System.Drawing
+```
+
+No third-party GUI framework is required.
 
 ---
 
 # ⚠️ PowerShell Execution Policy
 
-If Windows prevents the scripts from running, you can allow locally created PowerShell scripts for your account:
+If Windows prevents the scripts from running, you can allow locally created scripts for your account:
 
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
-You can check your current execution policies with:
+Check current policies with:
 
 ```powershell
 Get-ExecutionPolicy -List
@@ -556,51 +674,59 @@ Get-ExecutionPolicy -List
 
 # 🧰 Scripts
 
+## `AutoDownloadsOrganizer.ps1`
+
+Launches the V5 GUI and system tray control center.
+
+```powershell
+.\AutoDownloadsOrganizer.ps1
+```
+
+---
+
 ## `Organize-Downloads.ps1`
 
-Organizes the Downloads folder once.
+Organizes Downloads once.
 
 ```powershell
 .\Organize-Downloads.ps1
 ```
 
-Preview changes safely with:
+Dry Run:
 
 ```powershell
 .\Organize-Downloads.ps1 -DryRun
 ```
 
-It also supports single-file processing:
+Single-file mode:
 
 ```powershell
 .\Organize-Downloads.ps1 -FilePath "C:\Users\YourName\Downloads\example.png"
 ```
 
-This mode is primarily used internally by the V4 watcher.
-
 ---
 
 ## `Watch-Downloads.ps1`
 
-Continuously watches the Downloads folder and automatically organizes new files.
+Runs the real-time watcher.
 
 ```powershell
 .\Watch-Downloads.ps1
 ```
 
-V4 includes:
+Includes:
 
 - Single-instance protection
 - Duplicate event protection
 - File-ready checking
 - Per-file processing
-- Temporary download filtering
+- Temporary file filtering
 
 ---
 
 ## `Install.ps1`
 
-Adds AutoDownloadsOrganizer to Windows Startup.
+Enables the watcher at Windows startup.
 
 ```powershell
 .\Install.ps1
@@ -618,44 +744,44 @@ Removes the Windows Startup shortcut.
 
 ---
 
-# 🧪 Testing V4
+# 🧪 Testing V5
 
-## Test Single-Instance Protection
+## Test the GUI
 
-Start the watcher:
-
-```powershell
-.\Watch-Downloads.ps1
-```
-
-Then open another PowerShell window and run it again:
+Run:
 
 ```powershell
-.\Watch-Downloads.ps1
+.\AutoDownloadsOrganizer.ps1
 ```
 
-Expected output:
-
-```text
-AutoDownloadsOrganizer is already running.
-```
+Confirm the GUI opens.
 
 ---
 
-## Test Real-Time Organization
+## Test Start Monitoring
 
-With the watcher running, create a test file:
+Click:
 
-```powershell
-New-Item "$env:USERPROFILE\Downloads\v4-test.png" -ItemType File
+```text
+Start Monitoring
 ```
 
-The watcher should detect and move it automatically.
+The status should become:
+
+```text
+Real-time monitoring: ON
+```
+
+Create a test file:
+
+```powershell
+New-Item "$env:USERPROFILE\Downloads\v5-test.png" -ItemType File
+```
 
 Verify:
 
 ```powershell
-Test-Path "$env:USERPROFILE\Downloads\Images\v4-test.png"
+Test-Path "$env:USERPROFILE\Downloads\Images\v5-test.png"
 ```
 
 Expected:
@@ -666,29 +792,68 @@ True
 
 ---
 
-## Test Manual Organization
+## Test Stop Monitoring
 
-Create another test file:
+Click:
 
-```powershell
-New-Item "$env:USERPROFILE\Downloads\manual-test.pdf" -ItemType File
+```text
+Stop Monitoring
 ```
 
-Preview:
+Status:
 
-```powershell
-.\Organize-Downloads.ps1 -DryRun
+```text
+Real-time monitoring: OFF
 ```
 
-Then organize:
+Create:
 
 ```powershell
-.\Organize-Downloads.ps1
+New-Item "$env:USERPROFILE\Downloads\v5-stop-test.png" -ItemType File
+```
+
+It should remain in the root Downloads folder until you click:
+
+```text
+Organize Now
 ```
 
 ---
 
+## Test System Tray
+
+Minimize or close the GUI.
+
+Find the AutoDownloadsOrganizer icon in the Windows system tray.
+
+Test:
+
+- Open AutoDownloadsOrganizer
+- Organize Now
+- Start Monitoring
+- Stop Monitoring
+- Open Downloads
+- Exit
+
+---
+
 # 📌 Version History
+
+## V5
+
+- 🖥️ Added Windows GUI control center
+- 📌 Added system tray support
+- ▶️ Added Start Monitoring button
+- ⏹️ Added Stop Monitoring button
+- 🧹 Added one-click organization
+- 🧪 Added GUI Dry Run launcher
+- 📂 Added Open Downloads shortcut
+- ⚙️ Added configuration shortcut
+- 📝 Added activity log shortcut
+- 💻 Added project folder shortcut
+- 🚀 Added startup controls
+- 🔔 Added tray notifications
+- ➖ Added minimize-to-tray behavior
 
 ## V4
 
@@ -703,7 +868,7 @@ Then organize:
 
 - 👀 Added real-time Downloads monitoring
 - ⏳ Added file-ready detection
-- 🧩 Added browser temporary file handling
+- 🧩 Added temporary download handling
 
 ## V2
 
@@ -712,7 +877,7 @@ Then organize:
 - 📝 Added logging
 - 🚀 Added startup installer
 - 🗑️ Added startup uninstaller
-- 📦 Added more file categories
+- 📦 Added additional file categories
 
 ## V1
 
@@ -730,6 +895,7 @@ You can:
 - Add support for more file types
 - Suggest new categories
 - Improve PowerShell code
+- Improve the GUI
 - Improve documentation
 - Report bugs
 - Suggest new features
@@ -742,14 +908,16 @@ Feel free to open an **Issue** or submit a **Pull Request**.
 
 Possible future improvements include:
 
-- 🖥️ GUI configuration tool
-- 📋 System tray controls
-- 🔔 Optional Windows notifications
+- 🎨 Modern Windows 11-style GUI redesign
+- ✏️ Built-in category editor
+- 🖼️ Custom application icon
+- 📦 Standalone executable / installer
 - ↩️ Undo last organization
 - 📊 Organization statistics
 - 📅 Sort files by date
 - 🧠 Smarter file detection
-- 📦 Easy installer/release package
+- 🔔 More configurable notifications
+- ℹ️ About / version page
 
 ---
 
