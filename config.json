@@ -2,6 +2,11 @@
   "downloadsPath": "%USERPROFILE%\\Downloads",
   "moveUnknownFiles": true,
 
+  "watcher": {
+    "checkIntervalMilliseconds": 1000,
+    "postReadyDelayMilliseconds": 500
+  },
+
   "categories": {
     "Images": [
       ".jpg",
