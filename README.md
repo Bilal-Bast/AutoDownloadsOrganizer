@@ -66,7 +66,7 @@ Downloads
 Clone the repository:
 
 ```powershell
-git clone https://github.com/YOUR-USERNAME/AutoDownloadsOrganizer.git
+git clone https://github.com/Bilal-Bast/AutoDownloadsOrganizer.git
 ```
 
 Or download the repository as a ZIP from GitHub.
