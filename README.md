@@ -16,10 +16,15 @@ Use `-DryRun` to preview all file movements safely:
 
 ```powershell
 .\Organize-Downloads.ps1 -DryRun
+```
+
+---
 
 ## ✨ Features
 
 - 📁 Automatically sorts files by extension
+- 👀 Real-time Downloads folder monitoring
+- ⏳ Waits until downloads are finished before moving them
 - ⚙️ Fully configurable using `config.json`
 - 🧪 Safe `-DryRun` mode before moving anything
 - 🔄 Prevents duplicate files from being overwritten
@@ -29,6 +34,7 @@ Use `-DryRun` to preview all file movements safely:
 - 📦 Supports many common file types
 - ❓ Unknown files can automatically go into an `Other` folder
 - 💻 No third-party software required
+- 🔒 Does not require administrator privileges for normal use
 
 ---
 
@@ -36,7 +42,10 @@ Use `-DryRun` to preview all file movements safely:
 
 ```text
 AutoDownloadsOrganizer/
+├── assets/
+│   └── dryrun-demo.png
 ├── Organize-Downloads.ps1
+├── Watch-Downloads.ps1
 ├── Install.ps1
 ├── Uninstall.ps1
 ├── config.json
@@ -58,7 +67,7 @@ AutoDownloadsOrganizer can sort files into categories such as:
 | 🎵 Music | `.mp3`, `.wav`, `.flac`, `.m4a`, `.ogg` |
 | 📄 Documents | `.pdf`, `.docx`, `.pptx`, `.xlsx`, `.txt`, `.csv` |
 | 📦 Archives | `.zip`, `.rar`, `.7z`, `.tar`, `.gz` |
-| 💿 Installers | `.exe`, `.msi`, `.msix`, `.appx` |
+| 💿 Installers | `.exe`, `.msi`, `.msix`, `.appx`, `.appxbundle` |
 | 🤖 Android | `.apk`, `.aab`, `.xapk`, `.apks` |
 | 💽 Disk Images | `.iso`, `.img`, `.vhd`, `.vhdx` |
 | 🔤 Fonts | `.ttf`, `.otf`, `.woff`, `.woff2` |
@@ -116,7 +125,7 @@ Example:
 
 ---
 
-# ▶️ Run the Organizer
+# ▶️ Run the Organizer Once
 
 When you're happy with the Dry Run results:
 
@@ -124,7 +133,7 @@ When you're happy with the Dry Run results:
 .\Organize-Downloads.ps1
 ```
 
-Your Downloads folder will be organized automatically.
+Your current Downloads folder will be organized immediately.
 
 For example:
 
@@ -145,6 +154,73 @@ Downloads/
 ├── Game Files/
 └── Other/
 ```
+
+---
+
+# 👀 Real-Time Monitoring
+
+AutoDownloadsOrganizer V3 can continuously watch your Downloads folder and automatically organize new files as they arrive.
+
+Start the real-time watcher with:
+
+```powershell
+.\Watch-Downloads.ps1
+```
+
+You should see:
+
+```text
+AutoDownloadsOrganizer V3
+Watching: C:\Users\YourName\Downloads
+Press Ctrl+C to stop.
+```
+
+When a new file appears, AutoDownloadsOrganizer:
+
+1. Detects the new file
+2. Ignores temporary download files
+3. Waits until the file is finished downloading
+4. Runs the organizer
+5. Moves the file into the correct category
+6. Continues watching for more downloads
+
+Example:
+
+```text
+Detected: wallpaper.png
+Waiting for download to finish...
+Organizing...
+Moved 'wallpaper.png' -> 'Images'
+Done.
+```
+
+Press:
+
+```text
+Ctrl + C
+```
+
+to stop the watcher.
+
+---
+
+## ⏳ Temporary Download Protection
+
+Browsers often create temporary files while a download is still in progress.
+
+AutoDownloadsOrganizer ignores temporary extensions such as:
+
+```text
+.crdownload
+.part
+.partial
+.tmp
+.download
+```
+
+The watcher waits for the finished file before organizing it.
+
+This helps prevent partially downloaded or locked files from being moved too early.
 
 ---
 
@@ -229,7 +305,15 @@ Run:
 .\Install.ps1
 ```
 
-This creates a startup shortcut so the organizer automatically runs whenever you sign in to Windows.
+This creates a Windows Startup shortcut that launches:
+
+```text
+Watch-Downloads.ps1
+```
+
+automatically whenever you sign in to Windows.
+
+The watcher then runs quietly in the background and organizes new downloads automatically.
 
 Your project files are not copied or deleted.
 
@@ -265,11 +349,12 @@ organizer.log
 Example:
 
 ```text
-[2026-10-05 11:41:37] Organizer started. DryRun=False
-[2026-10-05 11:41:37] Moved 'wallpaper.png' -> 'Images'
-[2026-10-05 11:41:37] Moved 'setup.exe' -> 'Installers'
-[2026-10-05 11:41:37] Organizer finished.
+[2026-10-05 12:14:01] Organizer started. DryRun=False
+[2026-10-05 12:14:01] Moved 'v3-test.png' -> 'Images'
+[2026-10-05 12:14:01] Organizer finished.
 ```
+
+The real-time watcher also logs when it starts and stops.
 
 This can help you see what the script moved and troubleshoot problems.
 
@@ -310,6 +395,8 @@ It:
 - Does not delete your downloaded files
 - Does not overwrite duplicate files
 - Supports testing with `-DryRun`
+- Waits for files to finish downloading
+- Ignores common temporary download files
 - Only organizes files in the configured directory
 - Does not require administrator privileges for normal use
 
@@ -341,6 +428,48 @@ Get-ExecutionPolicy -List
 
 ---
 
+# 🧰 Scripts
+
+## `Organize-Downloads.ps1`
+
+Organizes the Downloads folder once.
+
+```powershell
+.\Organize-Downloads.ps1
+```
+
+Preview changes safely with:
+
+```powershell
+.\Organize-Downloads.ps1 -DryRun
+```
+
+## `Watch-Downloads.ps1`
+
+Continuously watches the Downloads folder and automatically organizes new files.
+
+```powershell
+.\Watch-Downloads.ps1
+```
+
+## `Install.ps1`
+
+Adds AutoDownloadsOrganizer to Windows Startup.
+
+```powershell
+.\Install.ps1
+```
+
+## `Uninstall.ps1`
+
+Removes the Windows Startup shortcut.
+
+```powershell
+.\Uninstall.ps1
+```
+
+---
+
 # 🤝 Contributing
 
 Contributions are welcome!
@@ -362,14 +491,15 @@ Feel free to open an **Issue** or submit a **Pull Request**.
 
 Possible future improvements include:
 
-- 👀 Real-time Downloads folder monitoring
-- ⏳ Wait until downloads finish before moving them
 - 🖥️ GUI configuration tool
 - ↩️ Undo last organization
 - 📊 Organization statistics
 - 📅 Sort files by date
 - 🧠 Smarter file detection
 - 📦 Easy installer/release package
+- 🔁 Prevent multiple watcher instances
+- 🔔 Optional Windows notifications
+- 📋 Optional system tray controls
 
 ---
 
