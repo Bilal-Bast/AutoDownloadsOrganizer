@@ -6,6 +6,17 @@ Instead of letting Downloads turn into a mess, AutoDownloadsOrganizer sorts file
 
 ---
 
+## 🎬 Demo
+
+See what AutoDownloadsOrganizer will do before moving anything:
+
+![AutoDownloadsOrganizer Dry Run Demo](assets/dryrun-demo.png)
+
+Use `-DryRun` to preview all file movements safely:
+
+```powershell
+.\Organize-Downloads.ps1 -DryRun
+
 ## ✨ Features
 
 - 📁 Automatically sorts files by extension
