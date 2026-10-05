@@ -1,8 +1,8 @@
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$OrganizerScript = Join-Path $ScriptDir "Organize-Downloads.ps1"
+$WatcherScript = Join-Path $ScriptDir "Watch-Downloads.ps1"
 
-if (!(Test-Path $OrganizerScript)) {
-    Write-Host "Organize-Downloads.ps1 was not found." -ForegroundColor Red
+if (!(Test-Path $WatcherScript)) {
+    Write-Host "Watch-Downloads.ps1 was not found." -ForegroundColor Red
     exit 1
 }
 
@@ -19,7 +19,7 @@ $Shortcut = $Shell.CreateShortcut($ShortcutPath)
 $Shortcut.TargetPath = "powershell.exe"
 
 $Shortcut.Arguments = `
-    "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$OrganizerScript`""
+    "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$WatcherScript`""
 
 $Shortcut.WorkingDirectory = $ScriptDir
 
