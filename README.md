@@ -4,6 +4,8 @@ A lightweight PowerShell utility that automatically organizes your Windows **Dow
 
 Instead of letting Downloads turn into a mess, AutoDownloadsOrganizer sorts files into clean categories such as **Images, Videos, Documents, Archives, Installers, Code, Android files, Rainmeter skins, Minecraft files, and more**.
 
+V4 adds faster real-time monitoring, single-instance protection, duplicate event protection, and per-file processing.
+
 ---
 
 ## 🎬 Demo
@@ -24,6 +26,9 @@ Use `-DryRun` to preview all file movements safely:
 
 - 📁 Automatically sorts files by extension
 - 👀 Real-time Downloads folder monitoring
+- 🎯 Processes only the newly detected file in real-time mode
+- 🔒 Prevents multiple watcher instances from running at the same time
+- 🧯 Filters duplicate filesystem events
 - ⏳ Waits until downloads are finished before moving them
 - ⚙️ Fully configurable using `config.json`
 - 🧪 Safe `-DryRun` mode before moving anything
@@ -159,7 +164,7 @@ Downloads/
 
 # 👀 Real-Time Monitoring
 
-AutoDownloadsOrganizer V3 can continuously watch your Downloads folder and automatically organize new files as they arrive.
+AutoDownloadsOrganizer V4 can continuously watch your Downloads folder and automatically organize new files as they arrive.
 
 Start the real-time watcher with:
 
@@ -170,8 +175,9 @@ Start the real-time watcher with:
 You should see:
 
 ```text
-AutoDownloadsOrganizer V3
+AutoDownloadsOrganizer V4
 Watching: C:\Users\YourName\Downloads
+Single-instance protection: Enabled
 Press Ctrl+C to stop.
 ```
 
@@ -179,10 +185,11 @@ When a new file appears, AutoDownloadsOrganizer:
 
 1. Detects the new file
 2. Ignores temporary download files
-3. Waits until the file is finished downloading
-4. Runs the organizer
-5. Moves the file into the correct category
-6. Continues watching for more downloads
+3. Filters duplicate filesystem events
+4. Waits until the file is finished downloading
+5. Sends only that file to the organizer
+6. Moves it into the correct category
+7. Continues watching for more downloads
 
 Example:
 
@@ -204,6 +211,74 @@ to stop the watcher.
 
 ---
 
+## ⚡ Optimized Per-File Processing
+
+Earlier versions could re-scan the entire Downloads folder whenever a new file appeared.
+
+V4 uses a more efficient approach.
+
+Instead of:
+
+```text
+New file
+   ↓
+Scan entire Downloads folder
+   ↓
+Organize everything
+```
+
+V4 does:
+
+```text
+New file
+   ↓
+Wait until ready
+   ↓
+Process only that file
+   ↓
+Move it
+   ↓
+Continue watching
+```
+
+The watcher uses:
+
+```powershell
+.\Organize-Downloads.ps1 -FilePath "C:\Users\YourName\Downloads\example.png"
+```
+
+internally to organize one file at a time.
+
+This makes real-time mode faster and more efficient.
+
+---
+
+## 🔒 Single-Instance Protection
+
+V4 prevents multiple watcher instances from running at the same time.
+
+If `Watch-Downloads.ps1` is already running and you try to start it again:
+
+```text
+AutoDownloadsOrganizer is already running.
+```
+
+The second watcher exits automatically.
+
+This helps prevent duplicate file processing and unnecessary background processes.
+
+---
+
+## 🧯 Duplicate Event Protection
+
+Windows `FileSystemWatcher` can sometimes report the same file event more than once.
+
+V4 tracks recently detected file paths and ignores duplicate events within a short time window.
+
+This prevents the same download from being processed twice.
+
+---
+
 ## ⏳ Temporary Download Protection
 
 Browsers often create temporary files while a download is still in progress.
@@ -218,7 +293,7 @@ AutoDownloadsOrganizer ignores temporary extensions such as:
 .download
 ```
 
-The watcher waits for the finished file before organizing it.
+The watcher waits for the completed file before organizing it.
 
 This helps prevent partially downloaded or locked files from being moved too early.
 
@@ -226,7 +301,7 @@ This helps prevent partially downloaded or locked files from being moved too ear
 
 # ⚙️ Configuration
 
-All categories are stored inside:
+All settings and categories are stored inside:
 
 ```text
 config.json
@@ -245,6 +320,49 @@ For example:
 ```json
 "downloadsPath": "D:\\Downloads"
 ```
+
+---
+
+## 👀 Watcher Configuration
+
+V4 also includes configurable watcher timing settings.
+
+Example:
+
+```json
+"watcher": {
+  "checkIntervalMilliseconds": 1000,
+  "postReadyDelayMilliseconds": 500
+}
+```
+
+### `checkIntervalMilliseconds`
+
+Controls how long the watcher waits before checking again when a file is still locked.
+
+Default:
+
+```text
+1000 ms
+```
+
+which is:
+
+```text
+1 second
+```
+
+### `postReadyDelayMilliseconds`
+
+Adds a small extra delay after the file becomes available.
+
+Default:
+
+```text
+500 ms
+```
+
+This helps avoid moving a file while a browser or application is performing final write or rename operations.
 
 ---
 
@@ -350,13 +468,19 @@ Example:
 
 ```text
 [2026-10-05 12:14:01] Organizer started. DryRun=False
-[2026-10-05 12:14:01] Moved 'v3-test.png' -> 'Images'
+[2026-10-05 12:14:01] Moved 'wallpaper.png' -> 'Images'
 [2026-10-05 12:14:01] Organizer finished.
 ```
 
-The real-time watcher also logs when it starts and stops.
+Watcher messages are also logged.
 
-This can help you see what the script moved and troubleshoot problems.
+Example:
+
+```text
+[2026-10-05 12:14:00] [Watcher] V4 watcher started.
+```
+
+Logging can help you see what the script moved and troubleshoot problems.
 
 ---
 
@@ -397,6 +521,8 @@ It:
 - Supports testing with `-DryRun`
 - Waits for files to finish downloading
 - Ignores common temporary download files
+- Prevents multiple watcher instances
+- Filters duplicate filesystem events
 - Only organizes files in the configured directory
 - Does not require administrator privileges for normal use
 
@@ -444,6 +570,16 @@ Preview changes safely with:
 .\Organize-Downloads.ps1 -DryRun
 ```
 
+It also supports single-file processing:
+
+```powershell
+.\Organize-Downloads.ps1 -FilePath "C:\Users\YourName\Downloads\example.png"
+```
+
+This mode is primarily used internally by the V4 watcher.
+
+---
+
 ## `Watch-Downloads.ps1`
 
 Continuously watches the Downloads folder and automatically organizes new files.
@@ -451,6 +587,16 @@ Continuously watches the Downloads folder and automatically organizes new files.
 ```powershell
 .\Watch-Downloads.ps1
 ```
+
+V4 includes:
+
+- Single-instance protection
+- Duplicate event protection
+- File-ready checking
+- Per-file processing
+- Temporary download filtering
+
+---
 
 ## `Install.ps1`
 
@@ -460,6 +606,8 @@ Adds AutoDownloadsOrganizer to Windows Startup.
 .\Install.ps1
 ```
 
+---
+
 ## `Uninstall.ps1`
 
 Removes the Windows Startup shortcut.
@@ -467,6 +615,109 @@ Removes the Windows Startup shortcut.
 ```powershell
 .\Uninstall.ps1
 ```
+
+---
+
+# 🧪 Testing V4
+
+## Test Single-Instance Protection
+
+Start the watcher:
+
+```powershell
+.\Watch-Downloads.ps1
+```
+
+Then open another PowerShell window and run it again:
+
+```powershell
+.\Watch-Downloads.ps1
+```
+
+Expected output:
+
+```text
+AutoDownloadsOrganizer is already running.
+```
+
+---
+
+## Test Real-Time Organization
+
+With the watcher running, create a test file:
+
+```powershell
+New-Item "$env:USERPROFILE\Downloads\v4-test.png" -ItemType File
+```
+
+The watcher should detect and move it automatically.
+
+Verify:
+
+```powershell
+Test-Path "$env:USERPROFILE\Downloads\Images\v4-test.png"
+```
+
+Expected:
+
+```text
+True
+```
+
+---
+
+## Test Manual Organization
+
+Create another test file:
+
+```powershell
+New-Item "$env:USERPROFILE\Downloads\manual-test.pdf" -ItemType File
+```
+
+Preview:
+
+```powershell
+.\Organize-Downloads.ps1 -DryRun
+```
+
+Then organize:
+
+```powershell
+.\Organize-Downloads.ps1
+```
+
+---
+
+# 📌 Version History
+
+## V4
+
+- 🔒 Added single-instance watcher protection
+- 🎯 Added per-file real-time processing
+- 🧯 Added duplicate filesystem event protection
+- ⚡ Improved real-time performance
+- ⚙️ Added configurable watcher timing
+- 📝 Improved watcher logging
+
+## V3
+
+- 👀 Added real-time Downloads monitoring
+- ⏳ Added file-ready detection
+- 🧩 Added browser temporary file handling
+
+## V2
+
+- ⚙️ Added `config.json`
+- 🧪 Added `-DryRun`
+- 📝 Added logging
+- 🚀 Added startup installer
+- 🗑️ Added startup uninstaller
+- 📦 Added more file categories
+
+## V1
+
+- 📁 Initial file organization by extension
+- 🔄 Duplicate filename protection
 
 ---
 
@@ -492,14 +743,13 @@ Feel free to open an **Issue** or submit a **Pull Request**.
 Possible future improvements include:
 
 - 🖥️ GUI configuration tool
+- 📋 System tray controls
+- 🔔 Optional Windows notifications
 - ↩️ Undo last organization
 - 📊 Organization statistics
 - 📅 Sort files by date
 - 🧠 Smarter file detection
 - 📦 Easy installer/release package
-- 🔁 Prevent multiple watcher instances
-- 🔔 Optional Windows notifications
-- 📋 Optional system tray controls
 
 ---
 
