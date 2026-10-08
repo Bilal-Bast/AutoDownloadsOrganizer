@@ -88,7 +88,7 @@ AutoDownloadsOrganizer can sort files into categories such as:
 | 💻 Code | `.py`, `.js`, `.dart`, `.java`, `.cpp`, `.ps1`, `.gd`, and more |
 | 🌧️ Rainmeter | `.rmskin` |
 | ☕ Java & Minecraft | `.jar`, `.mcpack`, `.mcworld`, `.mcaddon` |
-| 🎮 Game Files | Additional supported game-related formats |
+| 🎮 Game Files | `.rbxl`, `.rbxlx` |
 | 📂 Other | Anything that does not match another category |
 
 You can add, remove, or rename categories in `config.json`.
@@ -753,94 +753,79 @@ Removes the Windows Startup shortcut.
 
 # 🧪 Testing V5
 
-## Test the GUI
+## Run the automated tests
 
-Run:
+The Pester suite uses temporary project copies and Downloads folders:
 
 ```powershell
-.\AutoDownloadsOrganizer.ps1
+Install-Module Pester -MinimumVersion 5.5.0 -MaximumVersion 5.99.99 -Scope CurrentUser
+Invoke-Pester -Path .\tests -CI -Output Detailed
 ```
 
-Confirm the GUI opens.
+CI runs these tests on Windows and checks PowerShell scripts with PSScriptAnalyzer.
 
 ---
 
-## Test Start Monitoring
+## Prepare an isolated manual test copy
 
-Click:
-
-```text
-Start Monitoring
-```
-
-The status should become:
-
-```text
-Real-time monitoring: ON
-```
-
-Create a test file:
+Run this from the repository folder. The test app will use a temporary Downloads folder, leaving your real Downloads untouched:
 
 ```powershell
-New-Item "$env:USERPROFILE\Downloads\v5-test.png" -ItemType File
+$TestRoot = Join-Path $env:TEMP ("AutoDownloadsOrganizer-Test-" + [guid]::NewGuid().ToString("N"))
+$TestProject = Join-Path $TestRoot "App"
+$TestDownloads = Join-Path $TestRoot "Downloads"
+New-Item -ItemType Directory -Path $TestRoot -Force | Out-Null
+New-Item -ItemType Directory -Path $TestProject, $TestDownloads -Force | Out-Null
+
+Copy-Item -LiteralPath @(
+    ".\AutoDownloadsOrganizer.ps1",
+    ".\Organize-Downloads.ps1",
+    ".\Watch-Downloads.ps1",
+    ".\Install.ps1",
+    ".\Uninstall.ps1",
+    ".\config.json"
+) -Destination $TestProject
+
+$TestConfigPath = Join-Path $TestProject "config.json"
+$TestConfig = Get-Content -LiteralPath $TestConfigPath -Raw | ConvertFrom-Json
+$TestConfig.downloadsPath = $TestDownloads
+$TestConfig | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $TestConfigPath -Encoding UTF8
 ```
 
-Verify:
+## Test the GUI and watcher
 
 ```powershell
-Test-Path "$env:USERPROFILE\Downloads\Images\v5-test.png"
+Start-Process `
+    -FilePath "powershell.exe" `
+    -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$TestProject\AutoDownloadsOrganizer.ps1`""
 ```
 
-Expected:
-
-```text
-True
-```
-
----
-
-## Test Stop Monitoring
-
-Click:
-
-```text
-Stop Monitoring
-```
-
-Status:
-
-```text
-Real-time monitoring: OFF
-```
-
-Create:
+Click **Start Monitoring**, then create a test file from the same PowerShell session:
 
 ```powershell
-New-Item "$env:USERPROFILE\Downloads\v5-stop-test.png" -ItemType File
+New-Item -ItemType File -Path (Join-Path $TestDownloads "v5-test.png")
+$OrganizedFile = Join-Path $TestDownloads "Images\v5-test.png"
+$Deadline = (Get-Date).AddSeconds(10)
+while (!(Test-Path -LiteralPath $OrganizedFile) -and (Get-Date) -lt $Deadline) {
+    Start-Sleep -Milliseconds 200
+}
+Test-Path -LiteralPath $OrganizedFile
 ```
 
-It should remain in the root Downloads folder until you click:
+The result should be `True`. Click **Stop Monitoring**, then run:
 
-```text
-Organize Now
+```powershell
+New-Item -ItemType File -Path (Join-Path $TestDownloads "v5-stop-test.png")
+Test-Path -LiteralPath (Join-Path $TestDownloads "Images\v5-stop-test.png")
 ```
 
----
+The last command should return `False`; the file should stay in the test Downloads root until you click **Organize Now**. You can also test Dry Run and the tray menu from this copied app.
 
-## Test System Tray
+After testing, stop monitoring and exit the copied app. Remove the temporary test folder with:
 
-Minimize or close the GUI.
-
-Find the AutoDownloadsOrganizer icon in the Windows system tray.
-
-Test:
-
-- Open AutoDownloadsOrganizer
-- Organize Now
-- Start Monitoring
-- Stop Monitoring
-- Open Downloads
-- Exit
+```powershell
+Remove-Item -LiteralPath $TestRoot -Recurse -Force
+```
 
 ---
 
@@ -862,6 +847,9 @@ Test:
 - 🔔 Added tray notifications
 - ➖ Added minimize-to-tray behavior
 - 📥 Queued watcher events and added recovery scans after watcher errors
+- ⚡ Ran GUI organization in the background and reported failed moves
+- 🛡️ Validated category and single-file paths
+- 🧪 Added isolated Pester coverage and Windows CI checks
 
 ## V4
 
