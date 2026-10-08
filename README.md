@@ -4,7 +4,7 @@ A lightweight PowerShell utility that automatically organizes your Windows **Dow
 
 Instead of letting Downloads turn into a mess, AutoDownloadsOrganizer sorts files into clean categories such as **Images, Videos, Documents, Archives, Installers, Code, Android files, Rainmeter skins, Minecraft files, and more**.
 
-V5 adds a full **Windows GUI control center**, **system tray controls**, one-click organization, monitoring controls, configuration access, startup management, and tray notifications.
+V6 adds a refreshed **Windows GUI control center**, **system tray controls**, one-click organization, monitoring controls, configuration access, startup management, and tray notifications.
 
 ---
 
@@ -41,8 +41,12 @@ Use `-DryRun` to preview all file movements safely:
 - 🚀 Optional automatic startup when you sign in to Windows
 - 🗑️ Easy startup removal with `Uninstall.ps1`
 - 🔔 Tray notifications
+- Undo the latest organization batch and view category statistics
+- Optional date folders and common file-signature detection
+- Custom app icon and configurable notification preferences
+- Portable executable packaging and an optional Windows installer
 - 📂 One-click access to Downloads
-- ⚙️ One-click access to configuration
+- ⚙️ In-app category editor and access to JSON settings
 - 📝 One-click access to logs
 - 📦 Supports many common file types
 - ❓ Unknown files can automatically go into an `Other` folder
@@ -55,17 +59,23 @@ Use `-DryRun` to preview all file movements safely:
 
 ```text
 AutoDownloadsOrganizer/
-├── assets/
-│   └── dryrun-demo.png
-├── AutoDownloadsOrganizer.ps1
-├── Organize-Downloads.ps1
-├── Watch-Downloads.ps1
-├── Install.ps1
-├── Uninstall.ps1
-├── config.json
-├── README.md
-├── LICENSE
-└── .gitignore
+|-- assets/
+|   |-- AutoDownloadsOrganizer.ico
+|   |-- AutoDownloadsOrganizer.svg
+|   `-- dryrun-demo.png
+|-- installer/AutoDownloadsOrganizer.iss
+|-- tests/AutoDownloadsOrganizer.Tests.ps1
+|-- AutoDownloadsOrganizer.ps1
+|-- Organize-Downloads.ps1
+|-- Watch-Downloads.ps1
+|-- Undo-Last-Organization.ps1
+|-- Build-Release.ps1
+|-- Install.ps1
+|-- Uninstall.ps1
+|-- VERSION
+|-- config.json
+|-- README.md
+`-- LICENSE
 ```
 
 ---
@@ -115,7 +125,7 @@ cd AutoDownloadsOrganizer
 
 ---
 
-# 🖥️ Launch the V5 Control Center
+# 🖥️ Launch the V6 Control Center
 
 Run:
 
@@ -123,12 +133,12 @@ Run:
 .\AutoDownloadsOrganizer.ps1
 ```
 
-This opens the V5 GUI.
+This opens the V6 GUI.
 
 The control center includes:
 
 ```text
-AutoDownloadsOrganizer V5
+AutoDownloadsOrganizer 6
 
 Real-time monitoring: ON / OFF
 
@@ -136,11 +146,15 @@ Real-time monitoring: ON / OFF
 
 [ Start Monitoring ]    [ Stop Monitoring ]
 
-[ Open Downloads ]      [ Edit Configuration ]
+[ Open Downloads ]      [ Edit Categories ]
 
 [ Open Activity Log ]   [ Open Project Folder ]
 
+[ Undo Last ]           [ View Statistics ]
+
 [ Enable Startup ]      [ Disable Startup ]
+
+[ Edit JSON Settings ]  [ About / Version ]
 ```
 
 You can manage most features without manually typing PowerShell commands.
@@ -149,7 +163,7 @@ You can manage most features without manually typing PowerShell commands.
 
 # 📌 System Tray
 
-V5 includes a system tray icon.
+The V6 app includes a system tray icon.
 
 When you minimize or close the main window, the control center can remain available from the system tray.
 
@@ -173,7 +187,7 @@ Double-click the tray icon to reopen the main window.
 
 # 🔔 Tray Notifications
 
-V5 can show tray notifications for actions such as:
+The app can show tray notifications for actions such as:
 
 ```text
 Monitoring Started
@@ -274,7 +288,7 @@ or manually:
 You should see:
 
 ```text
-AutoDownloadsOrganizer V5
+AutoDownloadsOrganizer 6
 Watching: C:\Users\YourName\Downloads
 Single-instance protection: Enabled
 Press Ctrl+C to stop.
@@ -397,13 +411,7 @@ All settings and categories are stored inside:
 config.json
 ```
 
-The GUI provides an:
-
-```text
-Edit Configuration
-```
-
-button that opens the file in Notepad.
+The GUI provides **Edit Categories** for category rules and **Edit JSON Settings** to open the full config in Notepad. Changes to category rules take effect in a running watcher after monitoring is restarted.
 
 The default Downloads location is:
 
@@ -421,7 +429,7 @@ You can change it:
 
 ## 👀 Watcher Configuration
 
-V4/V5 includes configurable watcher timing.
+The watcher timing is configurable.
 
 Example:
 
@@ -595,7 +603,7 @@ Example:
 Watcher messages may look like:
 
 ```text
-[2026-10-05 12:14:00] [Watcher] V5 watcher started.
+[2026-10-05 12:14:00] [Watcher] V6 watcher started.
 ```
 
 ---
@@ -652,7 +660,7 @@ Always test new configuration changes with Dry Run first.
 - Windows PowerShell 5.1+ or compatible PowerShell
 - Git is optional and only needed when cloning the repository
 
-The V5 GUI uses built-in Windows components:
+The GUI uses built-in Windows components:
 
 ```text
 System.Windows.Forms
@@ -683,7 +691,7 @@ Get-ExecutionPolicy -List
 
 ## `AutoDownloadsOrganizer.ps1`
 
-Launches the V5 GUI and system tray control center.
+Launches the V6 GUI and system tray control center.
 
 ```powershell
 .\AutoDownloadsOrganizer.ps1
@@ -751,7 +759,7 @@ Removes the Windows Startup shortcut.
 
 ---
 
-# 🧪 Testing V5
+# 🧪 Testing V6
 
 ## Run the automated tests
 
@@ -831,6 +839,13 @@ Remove-Item -LiteralPath $TestRoot -Recurse -Force
 
 # 📌 Version History
 
+## V6
+
+- Refreshed the GUI and added a custom application icon
+- Added an in-app category editor, organization undo, statistics, and an About dialog
+- Added optional date folders, content-signature detection, and notification preferences
+- Added the portable executable package and Inno Setup installer build
+
 ## V5
 
 - 🖥️ Added Windows GUI control center
@@ -900,20 +915,50 @@ Feel free to open an **Issue** or submit a **Pull Request**.
 
 ---
 
-# 🗺️ Planned Features
+# V6 Features and Settings
 
-Possible future improvements include:
+The README's former planned-feature list is now implemented:
 
-- 🎨 Modern Windows 11-style GUI redesign
-- ✏️ Built-in category editor
-- 🖼️ Custom application icon
-- 📦 Standalone executable / installer
-- ↩️ Undo last organization
-- 📊 Organization statistics
-- 📅 Sort files by date
-- 🧠 Smarter file detection
-- 🔔 More configurable notifications
-- ℹ️ About / version page
+- The refreshed dark control center has larger, clearer actions and live organization counts.
+- **Edit Categories** adds, edits, and removes category rules in the GUI. Category names must be single folder names, and each extension can be assigned to only one category. **Edit JSON Settings** opens the full config for other options.
+- **Undo Last Organization** restores the latest batch from `organization-history.jsonl`. Files must still be in their recorded category folders; if the original filename is occupied, undo uses a name such as `report (undo 1).pdf`. Monitoring pauses during undo and resumes afterward. The statistics exclude moves that were undone.
+- **View Statistics** shows the total active moves, today's count, and category totals.
+- Set `sortByDate` to `true` to place files in `Category\YYYY\MM` folders, based on each file's last-modified time.
+- Set `detectByContent` to `true` to use common file signatures when the extension does not match a configured category. This recognizes common PNG/JPEG/GIF images, PDF documents, ZIP/RAR/7z archives, FLAC/ID3/WAVE audio, MP4 video, and Windows executables. Known extension rules still take priority.
+- The `notifications` object controls the tray messages for organization results, monitoring, and hiding the window. `durationSeconds` accepts 1 through 10.
+- `assets/AutoDownloadsOrganizer.ico` supplies the app and installer icon; the matching SVG is the editable source artwork.
+- The About / Version dialog shows the installed version and app details.
+
+Example settings:
+
+```json
+"detectByContent": true,
+"sortByDate": false,
+"notifications": {
+  "enabled": true,
+  "organizationComplete": true,
+  "organizationFailed": true,
+  "watcherStarted": true,
+  "watcherStopped": true,
+  "windowHidden": true,
+  "durationSeconds": 3
+}
+```
+
+## Build the portable package or installer
+
+The build creates a GUI executable and a portable ZIP containing the app's PowerShell support scripts, editable config, icon, and documentation. The GUI executable uses those companion files beside it.
+
+Install the PS2EXE build module and run:
+
+```powershell
+Install-Module ps2exe -Scope CurrentUser
+.\Build-Release.ps1
+```
+
+This creates `release/AutoDownloadsOrganizer-6.0.0-portable.zip`. To compile the Windows installer too, install Inno Setup and make `ISCC.exe` available on `PATH`; the build then also creates `release/AutoDownloadsOrganizer-Setup-6.0.0.exe`. Use `-SkipInstaller` to create only the portable package.
+
+The installer uses a per-user install location and offers optional desktop and sign-in monitoring shortcuts. It does not need administrator access.
 
 ---
 

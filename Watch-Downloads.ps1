@@ -276,13 +276,13 @@ try {
     $Watcher.EnableRaisingEvents = $true
 
     Write-Host ""
-    Write-Host "AutoDownloadsOrganizer V5" -ForegroundColor Cyan
+    Write-Host "AutoDownloadsOrganizer V6" -ForegroundColor Cyan
     Write-Host "Watching: $Downloads" -ForegroundColor Gray
     Write-Host "Single-instance protection: Enabled" -ForegroundColor DarkGray
     Write-Host "Press Ctrl+C to stop." -ForegroundColor DarkGray
     Write-Host ""
 
-    Write-WatcherLog "V5 watcher started."
+    Write-WatcherLog "V6 watcher started."
 
     while ($true) {
         $Now = Get-Date
@@ -422,7 +422,7 @@ finally {
         Remove-Job -Job $Subscription -Force -ErrorAction SilentlyContinue
     }
 
-    Write-WatcherLog "V5 watcher stopped."
+    Write-WatcherLog "V6 watcher stopped."
 
     try {
         $Mutex.ReleaseMutex()

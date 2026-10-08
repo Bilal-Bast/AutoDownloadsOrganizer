@@ -1,6 +1,17 @@
 {
   "downloadsPath": "%USERPROFILE%\\Downloads",
   "moveUnknownFiles": true,
+  "detectByContent": true,
+  "sortByDate": false,
+  "notifications": {
+    "enabled": true,
+    "organizationComplete": true,
+    "organizationFailed": true,
+    "watcherStarted": true,
+    "watcherStopped": true,
+    "windowHidden": true,
+    "durationSeconds": 3
+  },
 
   "watcher": {
     "checkIntervalMilliseconds": 1000,

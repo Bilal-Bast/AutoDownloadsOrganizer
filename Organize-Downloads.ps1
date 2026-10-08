@@ -7,6 +7,8 @@ param(
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ConfigPath = Join-Path $ScriptDir "config.json"
 $LogPath = Join-Path $ScriptDir "organizer.log"
+$HistoryPath = Join-Path $ScriptDir "organization-history.jsonl"
+$BatchId = [guid]::NewGuid().ToString()
 
 if (!(Test-Path $ConfigPath)) {
     Write-Host "config.json was not found." -ForegroundColor Red
@@ -86,6 +88,22 @@ foreach ($Category in $Config.categories.PSObject.Properties) {
     }
 }
 
+$ExtensionOwners = @{}
+foreach ($Category in $Config.categories.PSObject.Properties) {
+    foreach ($ConfiguredExtension in @($Category.Value)) {
+        $NormalizedExtension = ([string]$ConfiguredExtension).ToLowerInvariant()
+        if ($NormalizedExtension -notmatch '^\.[a-z0-9][a-z0-9._+-]*$') {
+            Write-Host "Invalid extension under category '$($Category.Name)': '$ConfiguredExtension'" -ForegroundColor Red
+            exit 1
+        }
+        if ($ExtensionOwners.ContainsKey($NormalizedExtension)) {
+            Write-Host "Extension '$NormalizedExtension' is listed under both '$($ExtensionOwners[$NormalizedExtension])' and '$($Category.Name)' in config.json." -ForegroundColor Red
+            exit 1
+        }
+        $ExtensionOwners[$NormalizedExtension] = $Category.Name
+    }
+}
+
 function Test-IsDownloadsRootFile {
     param([string]$Path)
 
@@ -142,7 +160,10 @@ function Get-UniqueDestination {
 }
 
 function Get-Category {
-    param([string]$Extension)
+    param(
+        [string]$Extension,
+        [string]$FilePath
+    )
 
     foreach ($Category in $Config.categories.PSObject.Properties) {
 
@@ -155,11 +176,76 @@ function Get-Category {
         }
     }
 
+    if ($Config.detectByContent -and $FilePath) {
+        $DetectedCategory = Get-ContentCategory -Path $FilePath
+        if ($DetectedCategory -and $Config.categories.PSObject.Properties[$DetectedCategory]) {
+            return $DetectedCategory
+        }
+    }
+
     if ($Config.moveUnknownFiles) {
         return "Other"
     }
 
     return $null
+}
+
+function Get-ContentCategory {
+    param([string]$Path)
+
+    $Stream = $null
+    try {
+        $Stream = [System.IO.File]::Open(
+            $Path,
+            [System.IO.FileMode]::Open,
+            [System.IO.FileAccess]::Read,
+            [System.IO.FileShare]::ReadWrite
+        )
+        $Bytes = New-Object byte[] 12
+        $ReadCount = $Stream.Read($Bytes, 0, $Bytes.Length)
+        if ($ReadCount -lt 4) { return $null }
+
+        if ($Bytes[0] -eq 0x89 -and $Bytes[1] -eq 0x50 -and $Bytes[2] -eq 0x4E -and $Bytes[3] -eq 0x47) { return "Images" }
+        if ($Bytes[0] -eq 0xFF -and $Bytes[1] -eq 0xD8 -and $Bytes[2] -eq 0xFF) { return "Images" }
+        if ([System.Text.Encoding]::ASCII.GetString($Bytes, 0, 3) -eq "GIF") { return "Images" }
+        if ([System.Text.Encoding]::ASCII.GetString($Bytes, 0, 5) -eq "%PDF-") { return "Documents" }
+        if ($Bytes[0] -eq 0x50 -and $Bytes[1] -eq 0x4B -and $Bytes[2] -in @(0x03, 0x05, 0x07)) { return "Archives" }
+        if ($Bytes[0] -eq 0x52 -and $Bytes[1] -eq 0x61 -and $Bytes[2] -eq 0x72 -and $Bytes[3] -eq 0x21 -and $Bytes[4] -eq 0x1A -and $Bytes[5] -eq 0x07) { return "Archives" }
+        if ($Bytes[0] -eq 0x37 -and $Bytes[1] -eq 0x7A -and $Bytes[2] -eq 0xBC -and $Bytes[3] -eq 0xAF) { return "Archives" }
+        if ([System.Text.Encoding]::ASCII.GetString($Bytes, 0, 4) -eq "fLaC") { return "Music" }
+        if ([System.Text.Encoding]::ASCII.GetString($Bytes, 0, 3) -eq "ID3") { return "Music" }
+        if ([System.Text.Encoding]::ASCII.GetString($Bytes, 0, 4) -eq "RIFF" -and [System.Text.Encoding]::ASCII.GetString($Bytes, 8, 4) -eq "WAVE") { return "Music" }
+        if ($ReadCount -ge 8 -and [System.Text.Encoding]::ASCII.GetString($Bytes, 4, 4) -eq "ftyp") { return "Videos" }
+        if ($Bytes[0] -eq 0x4D -and $Bytes[1] -eq 0x5A) { return "Installers" }
+    }
+    catch {
+        return $null
+    }
+    finally {
+        if ($Stream) { $Stream.Dispose() }
+    }
+
+    return $null
+}
+
+function Add-OrganizationHistory {
+    param(
+        [string]$SourcePath,
+        [string]$DestinationPath,
+        [string]$CategoryName
+    )
+
+    $Record = [ordered]@{
+        action = "move"
+        moveId = [guid]::NewGuid().ToString()
+        batchId = $BatchId
+        timestamp = [DateTime]::UtcNow.ToString("o")
+        sourcePath = $SourcePath
+        destinationPath = $DestinationPath
+        category = $CategoryName
+    }
+
+    Add-Content -LiteralPath $HistoryPath -Encoding UTF8 -Value ($Record | ConvertTo-Json -Compress)
 }
 
 function Move-DownloadFile {
@@ -186,17 +272,17 @@ function Move-DownloadFile {
     }
 
     $Extension = $File.Extension.ToLowerInvariant()
-    $Category = Get-Category -Extension $Extension
+    $Category = Get-Category -Extension $Extension -FilePath $File.FullName
 
     if (!$Category) {
         Write-Log "Skipped '$($File.Name)' - no matching category."
         return "Skipped"
     }
 
-    $DestinationDirectory = Join-Path $Downloads $Category
+    $CategoryDirectory = Join-Path $Downloads $Category
 
-    if (Test-Path -LiteralPath $DestinationDirectory) {
-        $DestinationItem = Get-Item -LiteralPath $DestinationDirectory -Force
+    if (Test-Path -LiteralPath $CategoryDirectory) {
+        $DestinationItem = Get-Item -LiteralPath $CategoryDirectory -Force
 
         if (
             !$DestinationItem.PSIsContainer -or
@@ -209,12 +295,46 @@ function Move-DownloadFile {
     else {
 
         if ($DryRun) {
-            Write-Host "[DRY RUN] Create folder: $DestinationDirectory"
+            Write-Host "[DRY RUN] Create folder: $CategoryDirectory"
         }
         else {
-            [System.IO.Directory]::CreateDirectory($DestinationDirectory) | Out-Null
+            try {
+                [System.IO.Directory]::CreateDirectory($CategoryDirectory) | Out-Null
+                Write-Log "Created folder: $Category"
+            }
+            catch {
+                Write-Log "ERROR creating folder '$Category': $($_.Exception.Message)"
+                return "Failed"
+            }
+        }
+    }
 
-            Write-Log "Created folder: $Category"
+    $DestinationDirectory = $CategoryDirectory
+    if ($Config.sortByDate) {
+        $YearDirectory = Join-Path $CategoryDirectory $File.LastWriteTime.ToString("yyyy")
+        $DestinationDirectory = Join-Path $YearDirectory $File.LastWriteTime.ToString("MM")
+        if ($DryRun) {
+            Write-Host "[DRY RUN] Create date folders: $DestinationDirectory"
+        }
+        else {
+            try {
+                [System.IO.Directory]::CreateDirectory($YearDirectory) | Out-Null
+                $YearItem = Get-Item -LiteralPath $YearDirectory -Force
+                if (!$YearItem.PSIsContainer -or ($YearItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+                    Write-Log "Skipped '$($File.Name)' - unsafe year folder."
+                    return "Failed"
+                }
+                [System.IO.Directory]::CreateDirectory($DestinationDirectory) | Out-Null
+                $MonthItem = Get-Item -LiteralPath $DestinationDirectory -Force
+                if (!$MonthItem.PSIsContainer -or ($MonthItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+                    Write-Log "Skipped '$($File.Name)' - unsafe month folder."
+                    return "Failed"
+                }
+            }
+            catch {
+                Write-Log "ERROR creating date folder for '$($File.Name)': $($_.Exception.Message)"
+                return "Failed"
+            }
         }
     }
 
@@ -236,6 +356,15 @@ function Move-DownloadFile {
             -ErrorAction Stop
 
         Write-Log "Moved '$($File.Name)' -> '$Category'"
+        try {
+            Add-OrganizationHistory `
+                -SourcePath $File.FullName `
+                -DestinationPath $Destination `
+                -CategoryName $Category
+        }
+        catch {
+            Write-Log "ERROR recording history for '$($File.Name)': $($_.Exception.Message)"
+        }
         return "Moved"
 
     }
