@@ -29,6 +29,8 @@ Use `-DryRun` to preview all file movements safely:
 - 📌 System tray support
 - 👀 Real-time Downloads folder monitoring
 - 🎯 Processes only the newly detected file in real-time mode
+- 📥 Queues file events while downloads finish
+- 🔁 Rescans Downloads if the watcher reports lost events
 - 🔒 Prevents multiple watcher instances from running at the same time
 - 🧯 Filters duplicate filesystem events
 - ⏳ Waits until downloads are finished before moving them
@@ -270,7 +272,7 @@ or manually:
 You should see:
 
 ```text
-AutoDownloadsOrganizer V4
+AutoDownloadsOrganizer V5
 Watching: C:\Users\YourName\Downloads
 Single-instance protection: Enabled
 Press Ctrl+C to stop.
@@ -297,16 +299,17 @@ When a new file appears, AutoDownloadsOrganizer:
 1. Detects the file
 2. Ignores temporary download files
 3. Filters duplicate filesystem events
-4. Waits until the file is finished downloading
-5. Sends only that file to the organizer
-6. Moves it into the correct category
-7. Continues watching for more downloads
+4. Queues events while the file finishes downloading
+5. Retries when the file is still busy
+6. Sends only that file to the organizer
+7. Rescans Downloads if the watcher reports an event error
+8. Moves it into the correct category
 
 Example:
 
 ```text
 Detected: wallpaper.png
-Waiting for download to finish...
+Checking whether the file is ready...
 Organizing...
 Moved 'wallpaper.png' -> 'Images'
 Done.
@@ -590,7 +593,7 @@ Example:
 Watcher messages may look like:
 
 ```text
-[2026-10-05 12:14:00] [Watcher] V4 watcher started.
+[2026-10-05 12:14:00] [Watcher] V5 watcher started.
 ```
 
 ---
@@ -633,6 +636,8 @@ AutoDownloadsOrganizer:
 - Prevents multiple watcher instances
 - Filters duplicate filesystem events
 - Organizes only the configured directory
+- Rejects single-file requests outside the Downloads root
+- Skips reparse-point source files and category folders
 - Does not require administrator privileges for normal use
 
 Always test new configuration changes with Dry Run first.
@@ -854,6 +859,7 @@ Test:
 - 🚀 Added startup controls
 - 🔔 Added tray notifications
 - ➖ Added minimize-to-tray behavior
+- 📥 Queued watcher events and added recovery scans after watcher errors
 
 ## V4
 
