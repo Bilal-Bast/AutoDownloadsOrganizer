@@ -29,9 +29,79 @@ else {
     Join-Path $env:USERPROFILE "Downloads"
 }
 
-if (!(Test-Path $Downloads)) {
+function Get-NormalizedFullPath {
+    param([string]$Path)
+
+    $FullPath = [System.IO.Path]::GetFullPath($Path)
+    $PathRoot = [System.IO.Path]::GetPathRoot($FullPath)
+    $Separators = [char[]]@(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    )
+
+    if ($FullPath.Length -gt $PathRoot.Length) {
+        $FullPath = $FullPath.TrimEnd($Separators)
+    }
+
+    return $FullPath
+}
+
+try {
+    $Downloads = Get-NormalizedFullPath -Path $Downloads
+}
+catch {
+    Write-Host "Downloads path is invalid: $Downloads" -ForegroundColor Red
+    exit 1
+}
+
+if (!(Test-Path -LiteralPath $Downloads -PathType Container)) {
     Write-Host "Downloads folder not found: $Downloads" -ForegroundColor Red
     exit 1
+}
+
+if (
+    $null -eq $Config.categories -or
+    $Config.categories -isnot [System.Management.Automation.PSCustomObject]
+) {
+    Write-Host "config.json must contain a categories object." -ForegroundColor Red
+    exit 1
+}
+
+$InvalidCategoryCharacters = [System.IO.Path]::GetInvalidFileNameChars()
+foreach ($Category in $Config.categories.PSObject.Properties) {
+    $FolderName = [string]$Category.Name
+
+    if (
+        [string]::IsNullOrWhiteSpace($FolderName) -or
+        $FolderName -in @(".", "..") -or
+        $FolderName.Contains("\") -or
+        $FolderName.Contains("/") -or
+        $FolderName.Trim() -ne $FolderName -or
+        $FolderName.EndsWith(".") -or
+        $FolderName.IndexOfAny($InvalidCategoryCharacters) -ge 0 -or
+        $FolderName -match '^(?i:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?$'
+    ) {
+        Write-Host "Invalid category folder name in config.json: '$FolderName'" -ForegroundColor Red
+        exit 1
+    }
+}
+
+function Test-IsDownloadsRootFile {
+    param([string]$Path)
+
+    try {
+        $FullPath = Get-NormalizedFullPath -Path $Path
+        $ParentPath = Get-NormalizedFullPath -Path ([System.IO.Path]::GetDirectoryName($FullPath))
+
+        return [string]::Equals(
+            $ParentPath,
+            $Downloads,
+            [System.StringComparison]::OrdinalIgnoreCase
+        )
+    }
+    catch {
+        return $false
+    }
 }
 
 function Write-Log {
@@ -40,7 +110,7 @@ function Write-Log {
     $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $Entry = "[$Timestamp] $Message"
 
-    Add-Content -Path $LogPath -Value $Entry
+    Add-Content -LiteralPath $LogPath -Value $Entry
     Write-Host $Entry
 }
 
@@ -98,33 +168,51 @@ function Move-DownloadFile {
     )
 
     if (!$File) {
-        return
+        return "Skipped"
     }
 
     if (!(Test-Path -LiteralPath $File.FullName)) {
-        return
+        return "Skipped"
     }
 
-    $Extension = $File.Extension.ToLower()
+    if (!(Test-IsDownloadsRootFile -Path $File.FullName)) {
+        Write-Log "Skipped '$($File.Name)' - file is outside the configured Downloads root."
+        return "Skipped"
+    }
+
+    if ($File.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+        Write-Log "Skipped '$($File.Name)' - reparse-point files are not moved."
+        return "Skipped"
+    }
+
+    $Extension = $File.Extension.ToLowerInvariant()
     $Category = Get-Category -Extension $Extension
 
     if (!$Category) {
         Write-Log "Skipped '$($File.Name)' - no matching category."
-        return
+        return "Skipped"
     }
 
     $DestinationDirectory = Join-Path $Downloads $Category
 
-    if (!(Test-Path $DestinationDirectory)) {
+    if (Test-Path -LiteralPath $DestinationDirectory) {
+        $DestinationItem = Get-Item -LiteralPath $DestinationDirectory -Force
+
+        if (
+            !$DestinationItem.PSIsContainer -or
+            ($DestinationItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint)
+        ) {
+            Write-Log "Skipped '$($File.Name)' - destination is not a safe category folder."
+            return "Skipped"
+        }
+    }
+    else {
 
         if ($DryRun) {
             Write-Host "[DRY RUN] Create folder: $DestinationDirectory"
         }
         else {
-            New-Item `
-                -ItemType Directory `
-                -Path $DestinationDirectory `
-                -Force | Out-Null
+            [System.IO.Directory]::CreateDirectory($DestinationDirectory) | Out-Null
 
             Write-Log "Created folder: $Category"
         }
@@ -133,7 +221,7 @@ function Move-DownloadFile {
     if ($DryRun) {
 
         Write-Host "[DRY RUN] $($File.Name) -> $Category"
-        return
+        return "DryRun"
     }
 
     $Destination = Get-UniqueDestination `
@@ -148,11 +236,13 @@ function Move-DownloadFile {
             -ErrorAction Stop
 
         Write-Log "Moved '$($File.Name)' -> '$Category'"
+        return "Moved"
 
     }
     catch {
 
         Write-Log "ERROR moving '$($File.Name)': $($_.Exception.Message)"
+        return "Failed"
     }
 }
 
@@ -165,9 +255,14 @@ Write-Log "Organizer started. DryRun=$DryRun"
 
 if ($FilePath) {
 
-    if (!(Test-Path -LiteralPath $FilePath)) {
+    if (!(Test-Path -LiteralPath $FilePath -PathType Leaf)) {
         Write-Log "File no longer exists: $FilePath"
         exit 0
+    }
+
+    if (!(Test-IsDownloadsRootFile -Path $FilePath)) {
+        Write-Log "Rejected file outside the configured Downloads root: $FilePath"
+        exit 1
     }
 
     $Item = Get-Item -LiteralPath $FilePath
@@ -177,9 +272,14 @@ if ($FilePath) {
         exit 0
     }
 
-    Move-DownloadFile -File $Item
+    $MoveResult = Move-DownloadFile -File $Item
 
     Write-Log "Organizer finished."
+
+    if ($MoveResult -eq "Failed") {
+        exit 2
+    }
+
     exit 0
 }
 
@@ -192,26 +292,23 @@ foreach ($Category in $Config.categories.PSObject.Properties) {
     $FolderName = $Category.Name
     $DestinationFolder = Join-Path $Downloads $FolderName
 
-    if (!(Test-Path $DestinationFolder)) {
+    if (!(Test-Path -LiteralPath $DestinationFolder)) {
 
         if ($DryRun) {
             Write-Host "[DRY RUN] Create folder: $DestinationFolder"
         }
         else {
-            New-Item `
-                -ItemType Directory `
-                -Path $DestinationFolder `
-                -Force | Out-Null
+            [System.IO.Directory]::CreateDirectory($DestinationFolder) | Out-Null
 
             Write-Log "Created folder: $FolderName"
         }
     }
 }
 
-$Files = Get-ChildItem -Path $Downloads -File
+$Files = Get-ChildItem -LiteralPath $Downloads -File
 
 foreach ($File in $Files) {
-    Move-DownloadFile -File $File
+    $null = Move-DownloadFile -File $File
 }
 
 Write-Log "Organizer finished."
