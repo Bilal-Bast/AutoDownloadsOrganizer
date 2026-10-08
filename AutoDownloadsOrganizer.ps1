@@ -523,10 +523,32 @@ function Stop-DownloadsWatcher {
 # Organize Now button
 # ---------------------------------------------------------
 
-$OrganizeButton.Add_Click({
+$script:OrganizerProcess = $null
+$script:ShowOrganizationCompletionDialog = $false
+$OrganizerPollTimer = New-Object System.Windows.Forms.Timer
+$OrganizerPollTimer.Interval = 500
 
-    if (!(Test-Path -LiteralPath $OrganizerPath)) {
+function Start-DownloadsOrganization {
+    param([switch]$ShowCompletionDialog)
 
+    if ($script:OrganizerProcess) {
+        try {
+            $script:OrganizerProcess.Refresh()
+
+            if (!$script:OrganizerProcess.HasExited) {
+                Show-AppMessage "Organization is already in progress."
+                return
+            }
+
+            $script:OrganizerProcess.Dispose()
+            $script:OrganizerProcess = $null
+        }
+        catch {
+            $script:OrganizerProcess = $null
+        }
+    }
+
+    if (!(Test-Path -LiteralPath $OrganizerPath -PathType Leaf)) {
         Show-AppMessage `
             "Organize-Downloads.ps1 could not be found." `
             "Error" `
@@ -535,33 +557,120 @@ $OrganizeButton.Add_Click({
         return
     }
 
-    $OrganizeButton.Enabled = $false
-    $OrganizeButton.Text = "Organizing..."
-
     try {
+        $Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$OrganizerPath`""
 
-        & $OrganizerPath
+        $script:OrganizerProcess = Start-Process `
+            -FilePath "powershell.exe" `
+            -ArgumentList $Arguments `
+            -WindowStyle Hidden `
+            -PassThru
 
-        Show-TrayNotification `
-            "Organization Complete" `
-            "Your Downloads folder has been organized."
+        $script:ShowOrganizationCompletionDialog = [bool]$ShowCompletionDialog
+        $OrganizeButton.Enabled = $false
+        $OrganizeButton.Text = "Organizing..."
 
-        Show-AppMessage `
-            "Downloads organization completed successfully."
+        if ($OrganizeMenuItem) {
+            $OrganizeMenuItem.Enabled = $false
+        }
 
+        $OrganizerPollTimer.Start()
     }
     catch {
+        Show-AppMessage `
+            $_.Exception.Message `
+            "Organizer Error" `
+            ([System.Windows.Forms.MessageBoxIcon]::Error)
+
+        $OrganizeButton.Enabled = $true
+        $OrganizeButton.Text = "Organize Now"
+
+        if ($OrganizeMenuItem) {
+            $OrganizeMenuItem.Enabled = $true
+        }
+    }
+}
+
+$OrganizerPollTimer.Add_Tick({
+    if (!$script:OrganizerProcess) {
+        $OrganizerPollTimer.Stop()
+        return
+    }
+
+    try {
+        $script:OrganizerProcess.Refresh()
+
+        if (!$script:OrganizerProcess.HasExited) {
+            return
+        }
+
+        $ExitCode = $script:OrganizerProcess.ExitCode
+        $script:OrganizerProcess.Dispose()
+        $script:OrganizerProcess = $null
+
+        $OrganizeButton.Enabled = $true
+        $OrganizeButton.Text = "Organize Now"
+
+        if ($OrganizeMenuItem) {
+            $OrganizeMenuItem.Enabled = $true
+        }
+
+        if ($ExitCode -eq 0) {
+            Show-TrayNotification `
+                "Organization Complete" `
+                "Your Downloads folder has been organized."
+
+            if ($script:ShowOrganizationCompletionDialog) {
+                Show-AppMessage "Downloads organization completed successfully."
+            }
+        }
+        else {
+            try {
+                Add-Content `
+                    -LiteralPath $LogPath `
+                    -Value "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [GUI] Organizer exited with code $ExitCode."
+            }
+            catch {
+            }
+
+            Show-TrayNotification `
+                "Organization Needs Attention" `
+                "Some files could not be organized. Check organizer.log."
+
+            if ($script:ShowOrganizationCompletionDialog) {
+                $ErrorMessage = if ($ExitCode -eq 2) {
+                    "Some files could not be moved. Check organizer.log for details."
+                }
+                else {
+                    "The organizer exited with code $ExitCode. Check config.json and organizer.log."
+                }
+
+                Show-AppMessage `
+                    $ErrorMessage `
+                    "Organization Error" `
+                    ([System.Windows.Forms.MessageBoxIcon]::Error)
+            }
+        }
+    }
+    catch {
+        $OrganizerPollTimer.Stop()
+        $script:OrganizerProcess = $null
+        $OrganizeButton.Enabled = $true
+        $OrganizeButton.Text = "Organize Now"
+
+        if ($OrganizeMenuItem) {
+            $OrganizeMenuItem.Enabled = $true
+        }
 
         Show-AppMessage `
             $_.Exception.Message `
             "Organizer Error" `
             ([System.Windows.Forms.MessageBoxIcon]::Error)
     }
-    finally {
+})
 
-        $OrganizeButton.Enabled = $true
-        $OrganizeButton.Text = "Organize Now"
-    }
+$OrganizeButton.Add_Click({
+    Start-DownloadsOrganization -ShowCompletionDialog
 })
 
 # ---------------------------------------------------------
@@ -845,25 +954,7 @@ $ShowMenuItem.Add_Click({
 # ---------------------------------------------------------
 
 $OrganizeMenuItem.Add_Click({
-
-    if (Test-Path -LiteralPath $OrganizerPath) {
-
-        try {
-
-            & $OrganizerPath
-
-            Show-TrayNotification `
-                "Organization Complete" `
-                "Your Downloads folder has been organized."
-        }
-        catch {
-
-            Show-AppMessage `
-                $_.Exception.Message `
-                "Organizer Error" `
-                ([System.Windows.Forms.MessageBoxIcon]::Error)
-        }
-    }
+    Start-DownloadsOrganization
 })
 
 # ---------------------------------------------------------
@@ -1008,6 +1099,12 @@ Update-WatcherStatus
 
 $StatusTimer.Stop()
 $StatusTimer.Dispose()
+$OrganizerPollTimer.Stop()
+$OrganizerPollTimer.Dispose()
+
+if ($script:OrganizerProcess) {
+    $script:OrganizerProcess.Dispose()
+}
 
 if ($TrayIcon) {
 

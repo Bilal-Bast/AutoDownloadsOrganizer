@@ -201,6 +201,8 @@ or run manually:
 
 Your current Downloads folder will be organized immediately.
 
+The GUI runs this work in the background so its controls remain responsive. If any file move fails, the GUI reports it and records the result in `organizer.log`.
+
 Example:
 
 ```text

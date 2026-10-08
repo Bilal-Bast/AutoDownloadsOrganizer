@@ -203,7 +203,7 @@ function Move-DownloadFile {
             ($DestinationItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint)
         ) {
             Write-Log "Skipped '$($File.Name)' - destination is not a safe category folder."
-            return "Skipped"
+            return "Failed"
         }
     }
     else {
@@ -305,10 +305,20 @@ foreach ($Category in $Config.categories.PSObject.Properties) {
     }
 }
 
-$Files = Get-ChildItem -LiteralPath $Downloads -File
+$Files = Get-ChildItem -LiteralPath $Downloads -File -ErrorAction Stop
+$FailedMoveCount = 0
 
 foreach ($File in $Files) {
-    $null = Move-DownloadFile -File $File
+    $MoveResult = Move-DownloadFile -File $File
+
+    if ($MoveResult -eq "Failed") {
+        $FailedMoveCount++
+    }
+}
+
+if ($FailedMoveCount -gt 0) {
+    Write-Log "Organizer finished with $FailedMoveCount failed move(s)."
+    exit 2
 }
 
 Write-Log "Organizer finished."
