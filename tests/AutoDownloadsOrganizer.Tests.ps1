@@ -84,17 +84,17 @@ BeforeAll {
     }
 }
 
-BeforeEach {
-    $script:TestProject = New-TestProject
-}
-
-AfterEach {
-    if ($script:TestProject -and (Test-Path -LiteralPath $script:TestProject.Root)) {
-        Remove-Item -LiteralPath $script:TestProject.Root -Recurse -Force
-    }
-}
-
 Describe "AutoDownloadsOrganizer file organization" {
+    BeforeEach {
+        $script:TestProject = New-TestProject
+    }
+
+    AfterEach {
+        if ($script:TestProject -and (Test-Path -LiteralPath $script:TestProject.Root)) {
+            Remove-Item -LiteralPath $script:TestProject.Root -Recurse -Force
+        }
+    }
+
     It "routes Minecraft package extensions to the configured Java and Minecraft category" {
         $SourcePath = Join-Path $script:TestProject.Downloads "resource-pack.mcpack"
         New-Item -ItemType File -Path $SourcePath | Out-Null
@@ -153,6 +153,16 @@ Describe "AutoDownloadsOrganizer file organization" {
 }
 
 Describe "AutoDownloadsOrganizer watcher" {
+    BeforeEach {
+        $script:TestProject = New-TestProject
+    }
+
+    AfterEach {
+        if ($script:TestProject -and (Test-Path -LiteralPath $script:TestProject.Root)) {
+            Remove-Item -LiteralPath $script:TestProject.Root -Recurse -Force
+        }
+    }
+
     It "retries a file that is locked while it is being created" {
         $OtherWatchers = @(
             Get-CimInstance -ClassName Win32_Process -ErrorAction SilentlyContinue |
@@ -193,7 +203,7 @@ Describe "AutoDownloadsOrganizer watcher" {
 
                 if (Test-Path -LiteralPath $script:TestProject.LogPath) {
                     $LogContents = Get-Content -LiteralPath $script:TestProject.LogPath -Raw
-                    if ($LogContents -match "V5 watcher started") {
+                    if ($LogContents -match "V\d+ watcher started") {
                         $WatcherStarted = $true
                         break
                     }
